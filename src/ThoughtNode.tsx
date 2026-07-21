@@ -1,0 +1,90 @@
+import { memo, useEffect, useRef } from 'react'
+import {
+  Handle,
+  NodeToolbar,
+  Position,
+  useReactFlow,
+  type NodeProps,
+} from '@xyflow/react'
+import { IconTrash } from './icons'
+import type { ThoughtNode as TN } from './store'
+
+function autosize(el: HTMLTextAreaElement) {
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+
+export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: NodeProps<TN>) {
+  const { setNodes, deleteElements } = useReactFlow()
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (data.editing && el) {
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+      autosize(el)
+    }
+  }, [data.editing])
+
+  const patch = (p: Partial<TN['data']>) =>
+    setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...p } } : n)))
+
+  const finish = () => {
+    // 빈 노드는 실수로 만든 것 — 정리
+    if (!data.text.trim()) deleteElements({ nodes: [{ id }] })
+    else patch({ editing: false })
+  }
+
+  return (
+    <div
+      className={`thought ${selected ? 'is-selected' : ''}`}
+      onClick={() => {
+        if (!data.editing) patch({ editing: true })
+      }}
+    >
+      <NodeToolbar isVisible={selected || !!data.editing} position={Position.Top} offset={8}>
+        <button
+          type="button"
+          className="node-del"
+          aria-label="노드 삭제"
+          // pointerdown 처리: click을 기다리면 textarea blur → 편집 종료 → 버튼이 먼저 언마운트됨
+          onPointerDown={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            deleteElements({ nodes: [{ id }] })
+          }}
+        >
+          <IconTrash size={16} />
+        </button>
+      </NodeToolbar>
+
+      {/* 4방향 핸들 — Loose 모드라 전부 출발·도착 겸용 */}
+      <Handle id="t" type="source" position={Position.Top} />
+      <Handle id="r" type="source" position={Position.Right} />
+      <Handle id="l" type="source" position={Position.Left} />
+      {data.editing ? (
+        <textarea
+          ref={ref}
+          className="nodrag nopan nowheel"
+          value={data.text}
+          rows={1}
+          placeholder="생각 입력…"
+          onChange={(e) => {
+            patch({ text: e.target.value })
+            autosize(e.target)
+          }}
+          onBlur={finish}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) {
+              e.currentTarget.blur()
+            }
+          }}
+        />
+      ) : (
+        <div className="thought-text">{data.text}</div>
+      )}
+      <Handle id="b" type="source" position={Position.Bottom} />
+    </div>
+  )
+})

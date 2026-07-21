@@ -1,0 +1,257 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Background,
+  BackgroundVariant,
+  ConnectionMode,
+  MarkerType,
+  ReactFlow,
+  ReactFlowProvider,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+  type Connection,
+  type Edge,
+  type FinalConnectionState,
+} from '@xyflow/react'
+import { toMarkdown } from './export'
+import { IconBack, IconCheck, IconExport, IconPlus, IconTrash, IconX } from './icons'
+import { ThoughtNode } from './ThoughtNode'
+import type { Session, ThoughtNode as TN } from './store'
+
+const nodeTypes = { thought: ThoughtNode }
+
+const defaultEdgeOptions = {
+  markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+}
+
+type Props = {
+  session: Session
+  onChange: (patch: Partial<Session>) => void
+  onBack: () => void
+}
+
+/** 저장 전 일시 상태(선택·편집·드래그) 제거 */
+function stripTransient(nodes: TN[], edges: Edge[]) {
+  return {
+    nodes: nodes.map(({ selected: _s, dragging: _d, ...n }) => ({
+      ...n,
+      data: { ...n.data, editing: undefined },
+    })),
+    edges: edges.map(({ selected: _s, ...e }) => e),
+  }
+}
+
+function CanvasInner({ session, onChange, onBack }: Props) {
+  const [nodes, setNodes, onNodesChange] = useNodesState<TN>(session.nodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(session.edges)
+  const nextSeq = useRef(session.nextSeq)
+  const { screenToFlowPosition } = useReactFlow()
+  const [toast, setToast] = useState<'' | 'ok' | 'fail'>('')
+  const [hasSelection, setHasSelection] = useState(false)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  // 그래프 변경을 상위(localStorage)로 디바운스 반영
+  useEffect(() => {
+    const t = setTimeout(
+      () => onChange({ ...stripTransient(nodes, edges), nextSeq: nextSeq.current }),
+      400,
+    )
+    return () => clearTimeout(t)
+  }, [nodes, edges, onChange])
+
+  // 마지막 변경 flush — 언마운트(뒤로가기)·백그라운드 전환(iOS 타이머 정지) 시 유실 방지
+  const latest = useRef({ nodes, edges })
+  latest.current = { nodes, edges }
+  useEffect(() => {
+    const flush = () => {
+      const { nodes, edges } = latest.current
+      onChange({ ...stripTransient(nodes, edges), nextSeq: nextSeq.current })
+    }
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVis)
+      flush()
+    }
+  }, [onChange])
+
+  const showToast = (msg: 'ok' | 'fail') => {
+    setToast(msg)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(''), 2200)
+  }
+
+  const addNode = useCallback(
+    (position?: { x: number; y: number }) => {
+      const node: TN = {
+        id: crypto.randomUUID(),
+        type: 'thought',
+        position:
+          position ??
+          screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight * 0.4 }),
+        data: { text: '', seq: nextSeq.current++, createdAt: Date.now(), editing: true },
+      }
+      setNodes((ns) => [...ns, node])
+    },
+    [screenToFlowPosition, setNodes],
+  )
+
+  // 빈 곳 더블탭 → 그 자리에 노드 (RF에 pane 더블클릭 이벤트가 없어 직접 감지)
+  const lastTap = useRef({ t: 0, x: 0, y: 0 })
+  const onPaneClick = useCallback(
+    (e: React.MouseEvent) => {
+      const now = Date.now()
+      const { t, x, y } = lastTap.current
+      if (now - t < 350 && Math.hypot(e.clientX - x, e.clientY - y) < 40) {
+        addNode(screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+        lastTap.current = { t: 0, x: 0, y: 0 }
+      } else {
+        lastTap.current = { t: now, x: e.clientX, y: e.clientY }
+      }
+    },
+    [addNode, screenToFlowPosition],
+  )
+
+  const onConnect = useCallback(
+    (c: Connection) => setEdges((es) => addEdge(c, es)),
+    [setEdges],
+  )
+
+  // 핸들 드래그를 빈 곳에 놓으면 그 자리에 새 노드 + 자동 연결
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
+      if (state.isValid || !state.fromNode) return
+      const { clientX, clientY } =
+        'changedTouches' in event ? event.changedTouches[0] : event
+      const pos = screenToFlowPosition({ x: clientX, y: clientY })
+      const id = crypto.randomUUID()
+      const node: TN = {
+        id,
+        type: 'thought',
+        position: { x: pos.x - 70, y: pos.y }, // 드롭 지점이 노드 상단 중앙쯤 오게
+        data: { text: '', seq: nextSeq.current++, createdAt: Date.now(), editing: true },
+      }
+      // 어느 핸들에서 끌든 파생 방향은 기존 노드 → 새 노드. 새 노드는 부모를 향한 반대편으로 받음
+      const from = (state.fromHandle?.id ?? 'b') as 't' | 'r' | 'b' | 'l'
+      const opposite = { t: 'b', b: 't', l: 'r', r: 'l' } as const
+      setNodes((ns) => [...ns, node])
+      setEdges((es) =>
+        addEdge(
+          {
+            source: state.fromNode!.id,
+            target: id,
+            sourceHandle: from,
+            targetHandle: opposite[from],
+          },
+          es,
+        ),
+      )
+    },
+    [screenToFlowPosition, setNodes, setEdges],
+  )
+
+  const deleteSelected = () => {
+    setEdges((es) => es.filter((e) => !e.selected))
+    setNodes((ns) => ns.filter((n) => !n.selected))
+  }
+
+  const currentMd = () => toMarkdown({ ...session, nodes, edges })
+
+  // 클립보드 복사 우선, 불가 시 공유 시트 폴백 — 버튼 하나로 통합
+  const doExport = async () => {
+    const md = currentMd()
+    try {
+      await navigator.clipboard.writeText(md)
+      showToast('ok')
+    } catch {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: session.title, text: md })
+        } catch {
+          /* 사용자 취소 */
+        }
+      } else {
+        showToast('fail')
+      }
+    }
+  }
+
+  return (
+    <div className="canvas-view">
+      <header className="topbar">
+        <button type="button" className="icon-btn" aria-label="세션 목록으로" onClick={onBack}>
+          <IconBack />
+        </button>
+        <input
+          className="title-input"
+          value={session.title}
+          aria-label="세션 제목"
+          onChange={(e) => onChange({ title: e.target.value })}
+        />
+        {hasSelection && (
+          <button
+            type="button"
+            className="icon-btn danger"
+            aria-label="선택 삭제"
+            onClick={deleteSelected}
+          >
+            <IconTrash />
+          </button>
+        )}
+        <button type="button" className="icon-btn primary" aria-label="내보내기" onClick={doExport}>
+          <IconExport />
+        </button>
+      </header>
+
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onConnectEnd={onConnectEnd}
+        onPaneClick={onPaneClick}
+        onSelectionChange={({ nodes: sn, edges: se }) => setHasSelection(sn.length + se.length > 0)}
+        isValidConnection={(c) => c.source !== c.target}
+        connectionMode={ConnectionMode.Loose}
+        defaultEdgeOptions={defaultEdgeOptions}
+        deleteKeyCode={['Backspace', 'Delete']}
+        zoomOnDoubleClick={false}
+        fitView
+        fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+        minZoom={0.2}
+        maxZoom={2}
+      >
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
+      </ReactFlow>
+
+      {nodes.length === 0 && (
+        <p className="canvas-hint">빈 곳을 더블탭하거나 + 버튼으로 첫 생각을 추가하세요</p>
+      )}
+
+      <button type="button" className="fab" aria-label="노드 추가" onClick={() => addNode()}>
+        <IconPlus size={26} />
+      </button>
+
+      {toast && (
+        <div className={`toast ${toast}`} role="status" aria-label={toast === 'ok' ? '복사됨' : '복사 실패'}>
+          {toast === 'ok' ? <IconCheck /> : <IconX />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Canvas(props: Props) {
+  return (
+    <ReactFlowProvider>
+      <CanvasInner {...props} />
+    </ReactFlowProvider>
+  )
+}
