@@ -3,7 +3,7 @@
   --surface: oklch(0.965 0.004 75);
   --ink: oklch(0.24 0.015 75);
   --muted: oklch(0.49 0.012 75);
-  --primary: oklch(0.62 0.13 70);
+  --primary: oklch(0.57 0.13 70);
   --primary-soft: oklch(0.93 0.045 75);
   --accent: oklch(0.45 0.09 230);
   --border: oklch(0.88 0.008 75);
@@ -81,7 +81,7 @@ button {
 }
 
 .icon-btn.primary:hover {
-  background: oklch(0.57 0.13 70);
+  background: oklch(0.52 0.13 70);
 }
 
 .icon-btn.danger {
