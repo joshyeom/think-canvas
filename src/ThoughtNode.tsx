@@ -40,7 +40,7 @@ export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: Nod
 
   return (
     <div
-      className={`thought ${selected ? 'is-selected' : ''}`}
+      className={`thought kind-${data.kind ?? 'note'} ${selected ? 'is-selected' : ''}`}
       onClick={() => {
         if (!data.editing) {
           snapshot() // 편집 전 텍스트를 undo 지점으로

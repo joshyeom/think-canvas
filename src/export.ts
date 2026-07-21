@@ -16,10 +16,12 @@ export function toMarkdown(s: Session): string {
   const lines = [`# ${s.title} (${date(s.createdAt)})`, '', '## 노드 (생성 순)']
 
   if (nodes.length === 0) lines.push('(없음)')
+  const kindTag = { branch: '[분기] ', exception: '[예외] ' } as const
   for (const n of nodes) {
     const text = n.data.text.trim() || '(빈 노드)'
     const [first, ...rest] = text.split('\n')
-    lines.push(`${n.data.seq}. [${time(n.data.createdAt)}] ${first}`)
+    const tag = n.data.kind && n.data.kind !== 'note' ? kindTag[n.data.kind] : ''
+    lines.push(`${n.data.seq}. [${time(n.data.createdAt)}] ${tag}${first}`)
     for (const r of rest) lines.push(`   ${r}`)
   }
 

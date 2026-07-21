@@ -6,6 +6,7 @@ import {
   MarkerType,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -16,15 +17,28 @@ import {
 } from '@xyflow/react'
 import { toMarkdown } from './export'
 import { CanvasOpsContext } from './history'
-import { IconBack, IconCheck, IconExport, IconPlus, IconX } from './icons'
+import {
+  IconAlert,
+  IconBack,
+  IconCheck,
+  IconDiamond,
+  IconExport,
+  IconPlus,
+  IconSquare,
+  IconX,
+} from './icons'
 import { ThoughtNode } from './ThoughtNode'
-import type { Session, ThoughtNode as TN } from './store'
+import type { NodeKind, Session, ThoughtNode as TN } from './store'
 
 const nodeTypes = { thought: ThoughtNode }
 
 const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
 }
+
+// 데스크톱(마우스·트랙패드): 빈 곳 드래그 = 박스 선택, 팬은 스크롤·중간/우클릭 드래그.
+// 터치(폰): 드래그 = 팬 유지 — 한 손 조작이 코어 시나리오.
+const finePointer = window.matchMedia('(pointer: fine)').matches
 
 type Props = {
   session: Session
@@ -162,20 +176,30 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   }, [setNodes, setEdges, snapshot, undo, copyNodes])
 
   const addNode = useCallback(
-    (position?: { x: number; y: number }) => {
+    (position?: { x: number; y: number }, kind: NodeKind = 'note') => {
       snapshot()
       const node: TN = {
         id: crypto.randomUUID(),
         type: 'thought',
+        // 연속 추가 시 겹침 방지 — seq 기반 소량 산개
         position:
           position ??
-          screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight * 0.4 }),
-        data: { text: '', seq: nextSeq.current++, createdAt: Date.now(), editing: true },
+          screenToFlowPosition({
+            x: window.innerWidth / 2 + ((nextSeq.current % 3) - 1) * 48,
+            y: window.innerHeight * 0.4 + (nextSeq.current % 4) * 32,
+          }),
+        data: { text: '', seq: nextSeq.current++, createdAt: Date.now(), kind, editing: true },
       }
       setNodes((ns) => [...ns, node])
     },
     [screenToFlowPosition, setNodes, snapshot],
   )
+
+  const [fabOpen, setFabOpen] = useState(false)
+  const pickKind = (kind: NodeKind) => {
+    setFabOpen(false)
+    addNode(undefined, kind)
+  }
 
   // 빈 곳 더블탭 → 그 자리에 노드 (RF에 pane 더블클릭 이벤트가 없어 직접 감지)
   const lastTap = useRef({ t: 0, x: 0, y: 0 })
@@ -304,6 +328,11 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         onPaneClick={onPaneClick}
         onBeforeDelete={onBeforeDelete}
         onNodeDragStart={snapshot}
+        onSelectionDragStart={snapshot}
+        selectionOnDrag={finePointer}
+        selectionMode={SelectionMode.Partial}
+        panOnDrag={finePointer ? [1, 2] : true}
+        panOnScroll={finePointer}
         isValidConnection={(c) => c.source !== c.target}
         connectionMode={ConnectionMode.Loose}
         defaultEdgeOptions={defaultEdgeOptions}
@@ -322,7 +351,41 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         <p className="canvas-hint">빈 곳을 더블탭하거나 + 버튼으로 첫 생각을 추가하세요</p>
       )}
 
-      <button type="button" className="fab" aria-label="노드 추가" onClick={() => addNode()}>
+      {fabOpen && (
+        <div className="fab-menu" role="menu">
+          <button
+            type="button"
+            className="fab-option"
+            aria-label="일반 노드"
+            onClick={() => pickKind('note')}
+          >
+            <IconSquare />
+          </button>
+          <button
+            type="button"
+            className="fab-option branch"
+            aria-label="분기 노드"
+            onClick={() => pickKind('branch')}
+          >
+            <IconDiamond />
+          </button>
+          <button
+            type="button"
+            className="fab-option exception"
+            aria-label="예외 노드"
+            onClick={() => pickKind('exception')}
+          >
+            <IconAlert />
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className={`fab ${fabOpen ? 'open' : ''}`}
+        aria-label="노드 추가"
+        aria-expanded={fabOpen}
+        onClick={() => setFabOpen((o) => !o)}
+      >
         <IconPlus size={22} />
       </button>
 

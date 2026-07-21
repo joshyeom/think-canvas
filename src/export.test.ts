@@ -4,12 +4,12 @@ import { toMarkdown } from './export.ts'
 import type { Session } from './store.ts'
 
 const t = new Date('2026-07-21T10:30:00').getTime()
-const node = (id: string, seq: number, text: string, offsetMin = 0) =>
+const node = (id: string, seq: number, text: string, offsetMin = 0, kind?: 'branch' | 'exception') =>
   ({
     id,
     type: 'thought' as const,
     position: { x: 0, y: 0 },
-    data: { text, seq, createdAt: t + offsetMin * 60000 },
+    data: { text, seq, createdAt: t + offsetMin * 60000, kind },
   })
 
 const base: Session = {
@@ -18,7 +18,7 @@ const base: Session = {
   createdAt: t,
   updatedAt: t,
   nextSeq: 4,
-  nodes: [node('b', 2, '멀티\n라인', 1), node('a', 1, '느림')],
+  nodes: [node('b', 2, '멀티\n라인', 1, 'branch'), node('a', 1, '느림')],
   edges: [
     { id: 'e1', source: 'a', target: 'b' },
     { id: 'e2', source: 'a', target: 'ghost' }, // 삭제된 노드 참조 — 제외돼야 함
@@ -32,7 +32,7 @@ assert.strictEqual(
     '',
     '## 노드 (생성 순)',
     '1. [10:30] 느림',
-    '2. [10:31] 멀티',
+    '2. [10:31] [분기] 멀티',
     '   라인',
     '',
     '## 연결',

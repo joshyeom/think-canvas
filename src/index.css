@@ -262,6 +262,40 @@ button {
   transform: scale(0.94);
 }
 
+.fab.open {
+  transform: rotate(45deg);
+}
+
+.fab-menu {
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + var(--space-9) + 6px);
+  bottom: calc(env(safe-area-inset-bottom) + 24px + 56px + var(--space-5));
+  display: grid;
+  gap: var(--space-4);
+  z-index: 20;
+}
+
+.fab-option {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-md);
+  animation: node-in 140ms var(--ease);
+}
+
+.fab-option.branch {
+  color: var(--accent);
+}
+
+.fab-option.exception {
+  color: var(--danger);
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -302,6 +336,58 @@ button {
   box-shadow: var(--shadow-sm);
   transition: border-color 150ms var(--ease), background 150ms var(--ease);
   animation: node-in 160ms var(--ease);
+}
+
+/* 분기: 육각형(결정), 예외: 팔각형(정지) — clip-path 배경 레이어로 도형 표현 */
+.thought.kind-branch,
+.thought.kind-exception {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.thought.kind-branch::before,
+.thought.kind-exception::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.thought.kind-branch {
+  padding-inline: calc(var(--space-6) + 12px);
+}
+
+.thought.kind-branch::before {
+  background: oklch(0.94 0.03 230);
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0 50%);
+}
+
+.thought.kind-exception {
+  padding-inline: calc(var(--space-6) + 6px);
+}
+
+.thought.kind-exception::before {
+  background: oklch(0.94 0.04 25);
+  clip-path: polygon(
+    12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px),
+    calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px
+  );
+}
+
+.thought.kind-branch.is-selected::before {
+  background: oklch(0.88 0.06 230);
+}
+
+.thought.kind-exception.is-selected::before {
+  background: oklch(0.88 0.08 25);
+}
+
+.thought.kind-branch.is-selected,
+.thought.kind-exception.is-selected {
+  border: none;
+  background: none;
+  box-shadow: none;
 }
 
 @keyframes node-in {

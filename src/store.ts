@@ -1,6 +1,13 @@
 import type { Edge, Node } from '@xyflow/react'
 
-export type ThoughtData = { text: string; seq: number; createdAt: number; editing?: boolean }
+export type NodeKind = 'note' | 'branch' | 'exception'
+export type ThoughtData = {
+  text: string
+  seq: number
+  createdAt: number
+  kind?: NodeKind // 없으면 note (구버전 데이터 호환)
+  editing?: boolean
+}
 export type ThoughtNode = Node<ThoughtData, 'thought'>
 
 export type Session = {
