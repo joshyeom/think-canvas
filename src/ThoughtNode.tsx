@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react'
+import { memo, useContext, useEffect, useRef } from 'react'
 import {
   Handle,
   NodeToolbar,
@@ -6,6 +6,7 @@ import {
   useReactFlow,
   type NodeProps,
 } from '@xyflow/react'
+import { SnapshotContext } from './history'
 import { IconTrash } from './icons'
 import type { ThoughtNode as TN } from './store'
 
@@ -16,6 +17,7 @@ function autosize(el: HTMLTextAreaElement) {
 
 export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: NodeProps<TN>) {
   const { setNodes, deleteElements } = useReactFlow()
+  const snapshot = useContext(SnapshotContext)
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -40,7 +42,10 @@ export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: Nod
     <div
       className={`thought ${selected ? 'is-selected' : ''}`}
       onClick={() => {
-        if (!data.editing) patch({ editing: true })
+        if (!data.editing) {
+          snapshot() // 편집 전 텍스트를 undo 지점으로
+          patch({ editing: true })
+        }
       }}
     >
       <NodeToolbar isVisible={selected || !!data.editing} position={Position.Top} offset={8}>

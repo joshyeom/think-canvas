@@ -15,7 +15,8 @@ import {
   type FinalConnectionState,
 } from '@xyflow/react'
 import { toMarkdown } from './export'
-import { IconBack, IconCheck, IconExport, IconPlus, IconTrash, IconX } from './icons'
+import { SnapshotContext } from './history'
+import { IconBack, IconCheck, IconExport, IconPlus, IconX } from './icons'
 import { ThoughtNode } from './ThoughtNode'
 import type { Session, ThoughtNode as TN } from './store'
 
@@ -48,7 +49,6 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   const nextSeq = useRef(session.nextSeq)
   const { screenToFlowPosition } = useReactFlow()
   const [toast, setToast] = useState<'' | 'ok' | 'fail'>('')
-  const [hasSelection, setHasSelection] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   // 그래프 변경을 상위(localStorage)로 디바운스 반영
@@ -86,8 +86,78 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     toastTimer.current = setTimeout(() => setToast(''), 2200)
   }
 
+  // undo 히스토리 + 내부 클립보드. 변이 직전 snapshot() 호출이 계약.
+  // ponytail: redo 없음·스냅샷 100개 상한 — 필요해지면 확장.
+  const past = useRef<{ nodes: TN[]; edges: Edge[] }[]>([])
+  const clip = useRef<{ nodes: TN[]; edges: Edge[] } | null>(null)
+  const snapshot = useCallback(() => {
+    past.current.push({ nodes: latest.current.nodes, edges: latest.current.edges })
+    if (past.current.length > 100) past.current.shift()
+  }, [])
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop()
+    if (!prev) return false
+    setNodes(prev.nodes)
+    setEdges(prev.edges)
+    return true
+  }, [setNodes, setEdges])
+
+  // Cmd/Ctrl + C·X·V·Z — 텍스트 입력 중엔 브라우저 기본 동작에 양보
+  useEffect(() => {
+    const isEditable = (t: EventTarget | null) =>
+      t instanceof HTMLElement &&
+      (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || isEditable(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === 'c' || key === 'x') {
+        const sel = latest.current.nodes.filter((n) => n.selected)
+        if (sel.length === 0) return
+        const ids = new Set(sel.map((n) => n.id))
+        clip.current = {
+          nodes: sel,
+          edges: latest.current.edges.filter((ed) => ids.has(ed.source) && ids.has(ed.target)),
+        }
+        if (key === 'x') {
+          snapshot()
+          setNodes((ns) => ns.filter((n) => !ids.has(n.id)))
+          setEdges((es) => es.filter((ed) => !ids.has(ed.source) && !ids.has(ed.target)))
+        }
+        e.preventDefault()
+      } else if (key === 'v') {
+        if (!clip.current) return
+        snapshot()
+        const idMap = new Map(clip.current.nodes.map((n) => [n.id, crypto.randomUUID()]))
+        const now = Date.now()
+        const pasted = clip.current.nodes.map((n) => ({
+          ...n,
+          id: idMap.get(n.id)!,
+          position: { x: n.position.x + 24, y: n.position.y + 24 },
+          selected: true,
+          data: { ...n.data, seq: nextSeq.current++, createdAt: now, editing: false },
+        }))
+        const pastedEdges = clip.current.edges.map((ed) => ({
+          ...ed,
+          id: crypto.randomUUID(),
+          source: idMap.get(ed.source)!,
+          target: idMap.get(ed.target)!,
+          selected: false,
+        }))
+        setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), ...pasted])
+        setEdges((es) => [...es, ...pastedEdges])
+        e.preventDefault()
+      } else if (key === 'z' && !e.shiftKey) {
+        if (undo()) e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setNodes, setEdges, snapshot, undo])
+
   const addNode = useCallback(
     (position?: { x: number; y: number }) => {
+      snapshot()
       const node: TN = {
         id: crypto.randomUUID(),
         type: 'thought',
@@ -98,7 +168,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
       }
       setNodes((ns) => [...ns, node])
     },
-    [screenToFlowPosition, setNodes],
+    [screenToFlowPosition, setNodes, snapshot],
   )
 
   // 빈 곳 더블탭 → 그 자리에 노드 (RF에 pane 더블클릭 이벤트가 없어 직접 감지)
@@ -118,14 +188,24 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   )
 
   const onConnect = useCallback(
-    (c: Connection) => setEdges((es) => addEdge(c, es)),
-    [setEdges],
+    (c: Connection) => {
+      snapshot()
+      setEdges((es) => addEdge(c, es))
+    },
+    [setEdges, snapshot],
   )
+
+  // RF 내부 삭제(Backspace·deleteElements) 직전 훅 — undo 스냅샷 지점
+  const onBeforeDelete = useCallback(async () => {
+    snapshot()
+    return true
+  }, [snapshot])
 
   // 핸들 드래그를 빈 곳에 놓으면 그 자리에 새 노드 + 자동 연결
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
       if (state.isValid || !state.fromNode) return
+      snapshot()
       const { clientX, clientY } =
         'changedTouches' in event ? event.changedTouches[0] : event
       const pos = screenToFlowPosition({ x: clientX, y: clientY })
@@ -152,13 +232,8 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         ),
       )
     },
-    [screenToFlowPosition, setNodes, setEdges],
+    [screenToFlowPosition, setNodes, setEdges, snapshot],
   )
-
-  const deleteSelected = () => {
-    setEdges((es) => es.filter((e) => !e.selected))
-    setNodes((ns) => ns.filter((n) => !n.selected))
-  }
 
   const currentMd = () => toMarkdown({ ...session, nodes, edges })
 
@@ -193,21 +268,12 @@ function CanvasInner({ session, onChange, onBack }: Props) {
           aria-label="세션 제목"
           onChange={(e) => onChange({ title: e.target.value })}
         />
-        {hasSelection && (
-          <button
-            type="button"
-            className="icon-btn danger"
-            aria-label="선택 삭제"
-            onClick={deleteSelected}
-          >
-            <IconTrash />
-          </button>
-        )}
         <button type="button" className="icon-btn primary" aria-label="내보내기" onClick={doExport}>
           <IconExport />
         </button>
       </header>
 
+      <SnapshotContext.Provider value={snapshot}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -217,7 +283,8 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}
         onPaneClick={onPaneClick}
-        onSelectionChange={({ nodes: sn, edges: se }) => setHasSelection(sn.length + se.length > 0)}
+        onBeforeDelete={onBeforeDelete}
+        onNodeDragStart={snapshot}
         isValidConnection={(c) => c.source !== c.target}
         connectionMode={ConnectionMode.Loose}
         defaultEdgeOptions={defaultEdgeOptions}
@@ -230,6 +297,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
       </ReactFlow>
+      </SnapshotContext.Provider>
 
       {nodes.length === 0 && (
         <p className="canvas-hint">빈 곳을 더블탭하거나 + 버튼으로 첫 생각을 추가하세요</p>
