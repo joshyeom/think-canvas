@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -15,7 +15,7 @@ import {
   type FinalConnectionState,
 } from '@xyflow/react'
 import { toMarkdown } from './export'
-import { SnapshotContext } from './history'
+import { CanvasOpsContext } from './history'
 import { IconBack, IconCheck, IconExport, IconPlus, IconX } from './icons'
 import { ThoughtNode } from './ThoughtNode'
 import type { Session, ThoughtNode as TN } from './store'
@@ -47,7 +47,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<TN>(session.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(session.edges)
   const nextSeq = useRef(session.nextSeq)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, deleteElements } = useReactFlow()
   const [toast, setToast] = useState<'' | 'ok' | 'fail'>('')
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -103,6 +103,15 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     return true
   }, [setNodes, setEdges])
 
+  // 노드들을 내부 클립보드로 (엣지는 복사 대상 노드 사이 것만)
+  const copyNodes = useCallback((ids: string[]) => {
+    const set = new Set(ids)
+    clip.current = {
+      nodes: latest.current.nodes.filter((n) => set.has(n.id)),
+      edges: latest.current.edges.filter((ed) => set.has(ed.source) && set.has(ed.target)),
+    }
+  }, [])
+
   // Cmd/Ctrl + C·X·V·Z — 텍스트 입력 중엔 브라우저 기본 동작에 양보
   useEffect(() => {
     const isEditable = (t: EventTarget | null) =>
@@ -115,10 +124,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         const sel = latest.current.nodes.filter((n) => n.selected)
         if (sel.length === 0) return
         const ids = new Set(sel.map((n) => n.id))
-        clip.current = {
-          nodes: sel,
-          edges: latest.current.edges.filter((ed) => ids.has(ed.source) && ids.has(ed.target)),
-        }
+        copyNodes(sel.map((n) => n.id))
         if (key === 'x') {
           snapshot()
           setNodes((ns) => ns.filter((n) => !ids.has(n.id)))
@@ -153,7 +159,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setNodes, setEdges, snapshot, undo])
+  }, [setNodes, setEdges, snapshot, undo, copyNodes])
 
   const addNode = useCallback(
     (position?: { x: number; y: number }) => {
@@ -200,6 +206,19 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     snapshot()
     return true
   }, [snapshot])
+
+  // 노드 툴바(복사·잘라내기)용 오퍼레이션 — 삭제는 deleteElements 경유라 스냅샷 자동
+  const ops = useMemo(
+    () => ({
+      snapshot,
+      copyNode: (id: string) => copyNodes([id]),
+      cutNode: (id: string) => {
+        copyNodes([id])
+        deleteElements({ nodes: [{ id }] })
+      },
+    }),
+    [snapshot, copyNodes, deleteElements],
+  )
 
   // 핸들 드래그를 빈 곳에 놓으면 그 자리에 새 노드 + 자동 연결
   const onConnectEnd = useCallback(
@@ -273,7 +292,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         </button>
       </header>
 
-      <SnapshotContext.Provider value={snapshot}>
+      <CanvasOpsContext.Provider value={ops}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -297,14 +316,14 @@ function CanvasInner({ session, onChange, onBack }: Props) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
       </ReactFlow>
-      </SnapshotContext.Provider>
+      </CanvasOpsContext.Provider>
 
       {nodes.length === 0 && (
         <p className="canvas-hint">빈 곳을 더블탭하거나 + 버튼으로 첫 생각을 추가하세요</p>
       )}
 
       <button type="button" className="fab" aria-label="노드 추가" onClick={() => addNode()}>
-        <IconPlus size={26} />
+        <IconPlus size={22} />
       </button>
 
       {toast && (

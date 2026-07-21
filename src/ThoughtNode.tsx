@@ -6,8 +6,8 @@ import {
   useReactFlow,
   type NodeProps,
 } from '@xyflow/react'
-import { SnapshotContext } from './history'
-import { IconTrash } from './icons'
+import { CanvasOpsContext } from './history'
+import { IconCopy, IconCut, IconTrash } from './icons'
 import type { ThoughtNode as TN } from './store'
 
 function autosize(el: HTMLTextAreaElement) {
@@ -17,7 +17,7 @@ function autosize(el: HTMLTextAreaElement) {
 
 export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: NodeProps<TN>) {
   const { setNodes, deleteElements } = useReactFlow()
-  const snapshot = useContext(SnapshotContext)
+  const { snapshot, copyNode, cutNode } = useContext(CanvasOpsContext)
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -48,20 +48,46 @@ export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: Nod
         }
       }}
     >
+      {/* pointerdown 처리: click을 기다리면 textarea blur → 편집 종료 → 버튼이 먼저 언마운트됨 */}
       <NodeToolbar isVisible={selected || !!data.editing} position={Position.Top} offset={8}>
-        <button
-          type="button"
-          className="node-del"
-          aria-label="노드 삭제"
-          // pointerdown 처리: click을 기다리면 textarea blur → 편집 종료 → 버튼이 먼저 언마운트됨
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            deleteElements({ nodes: [{ id }] })
-          }}
-        >
-          <IconTrash size={16} />
-        </button>
+        <div className="node-toolbar">
+          <button
+            type="button"
+            className="node-tool"
+            aria-label="복사"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              copyNode(id)
+            }}
+          >
+            <IconCopy size={13} />
+          </button>
+          <button
+            type="button"
+            className="node-tool"
+            aria-label="잘라내기"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              cutNode(id)
+            }}
+          >
+            <IconCut size={13} />
+          </button>
+          <button
+            type="button"
+            className="node-tool danger"
+            aria-label="노드 삭제"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              deleteElements({ nodes: [{ id }] })
+            }}
+          >
+            <IconTrash size={13} />
+          </button>
+        </div>
       </NodeToolbar>
 
       {/* 4방향 핸들 — Loose 모드라 전부 출발·도착 겸용 */}

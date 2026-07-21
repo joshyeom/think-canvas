@@ -84,7 +84,7 @@ button {
   background: oklch(0.52 0.13 70);
 }
 
-:is(.icon-btn, .btn-del, .node-del, .session-card, .fab):focus-visible {
+:is(.icon-btn, .btn-del, .node-tool, .session-card, .fab):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -357,15 +357,31 @@ button {
   place-items: center;
 }
 
-.node-del {
-  background: var(--danger);
-  color: oklch(1 0 0);
-  width: 36px;
-  height: 36px;
+.node-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
+  padding: var(--space-1);
+  box-shadow: var(--shadow-md);
+}
+
+.node-tool {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   display: grid;
   place-items: center;
-  box-shadow: var(--shadow-md);
+  color: var(--ink);
+}
+
+.node-tool:hover {
+  background: var(--surface);
+}
+
+.node-tool.danger {
+  color: var(--danger);
 }
 
 /* ---------- React Flow 오버라이드 ---------- */
