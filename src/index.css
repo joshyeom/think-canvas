@@ -15,6 +15,16 @@
   --shadow-sm: 0 1px 2px oklch(0.24 0.015 75 / 0.07);
   --shadow-md: 0 4px 12px oklch(0.24 0.015 75 / 0.12);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-9: 20px;
 }
 
 * {
@@ -89,7 +99,10 @@ button {
 .list-view {
   height: 100%;
   overflow-y: auto;
-  padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 20px);
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + var(--space-9)) var(--space-9)
+    calc(env(safe-area-inset-bottom) + var(--space-9));
   max-width: 640px;
   margin: 0 auto;
 }
@@ -98,7 +111,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-9);
 }
 
 .list-header h1 {
@@ -108,28 +121,29 @@ button {
 }
 
 .empty {
-  margin-top: 18vh;
+  flex: 1;
   text-align: center;
   color: var(--muted);
   display: grid;
-  gap: 4px;
+  align-content: center;
+  gap: var(--space-2);
   justify-items: center;
 }
 
 .empty .icon-btn {
-  margin-top: 20px;
+  margin-top: var(--space-9);
 }
 
 .session-list {
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: var(--space-5);
 }
 
 .session-list li {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
 .session-card {
@@ -139,9 +153,9 @@ button {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: var(--space-7) var(--space-8);
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   transition: border-color 150ms var(--ease), background 150ms var(--ease);
 }
 
@@ -190,8 +204,8 @@ button {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: calc(env(safe-area-inset-top) + 6px) 10px 6px;
+  gap: var(--space-3);
+  padding: calc(env(safe-area-inset-top) + var(--space-3)) var(--space-5) var(--space-3);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   z-index: 10;
@@ -207,7 +221,7 @@ button {
   background: none;
   border: none;
   border-radius: 8px;
-  padding: 8px;
+  padding: var(--space-4);
 }
 
 .title-input:focus {
@@ -233,7 +247,7 @@ button {
 
 .fab {
   position: fixed;
-  right: calc(env(safe-area-inset-right) + 20px);
+  right: calc(env(safe-area-inset-right) + var(--space-9));
   bottom: calc(env(safe-area-inset-bottom) + 24px);
   width: 56px;
   height: 56px;
@@ -260,7 +274,7 @@ button {
   transform: translateX(-50%);
   background: var(--ink);
   color: oklch(0.97 0 0);
-  padding: 10px;
+  padding: var(--space-5);
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   z-index: 30;
@@ -289,7 +303,7 @@ button {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: var(--space-5) var(--space-6);
   box-shadow: var(--shadow-sm);
   transition: border-color 150ms var(--ease), background 150ms var(--ease);
   animation: node-in 160ms var(--ease);
@@ -337,7 +351,7 @@ button {
   left: -8px;
   min-width: 18px;
   height: 18px;
-  padding: 0 4px;
+  padding: 0 var(--space-2);
   border-radius: 9px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -409,7 +423,7 @@ button {
   color: oklch(1 0 0);
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: var(--space-4) var(--space-7);
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   z-index: 40;
