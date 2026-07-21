@@ -17,11 +17,14 @@ import {
 } from '@xyflow/react'
 import { toMarkdown } from './export'
 import { CanvasOpsContext } from './history'
-import { IconBack, IconCheck, IconExport, IconPlus, IconX } from './icons'
+import { IconBack, IconCheck, IconExport, IconPlus, IconUndo, IconX } from './icons'
+import { ThoughtEdge } from './ThoughtEdge'
 import { ThoughtNode } from './ThoughtNode'
 import type { NodeKind, Session, ThoughtNode as TN } from './store'
 
 const nodeTypes = { thought: ThoughtNode }
+// 'default' 오버라이드 — 기존 저장 엣지(type 없음)도 커스텀 엣지로 렌더
+const edgeTypes = { default: ThoughtEdge }
 
 const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
@@ -109,13 +112,38 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   }, [setNodes, setEdges])
 
   // 노드들을 내부 클립보드로 (엣지는 복사 대상 노드 사이 것만)
+  const [hasClip, setHasClip] = useState(false)
   const copyNodes = useCallback((ids: string[]) => {
     const set = new Set(ids)
     clip.current = {
       nodes: latest.current.nodes.filter((n) => set.has(n.id)),
       edges: latest.current.edges.filter((ed) => set.has(ed.source) && set.has(ed.target)),
     }
+    setHasClip(true)
   }, [])
+
+  const pasteClipboard = useCallback(() => {
+    if (!clip.current) return
+    snapshot()
+    const idMap = new Map(clip.current.nodes.map((n) => [n.id, crypto.randomUUID()]))
+    const now = Date.now()
+    const pasted = clip.current.nodes.map((n) => ({
+      ...n,
+      id: idMap.get(n.id)!,
+      position: { x: n.position.x + 24, y: n.position.y + 24 },
+      selected: true,
+      data: { ...n.data, seq: nextSeq.current++, createdAt: now, editing: false },
+    }))
+    const pastedEdges = clip.current.edges.map((ed) => ({
+      ...ed,
+      id: crypto.randomUUID(),
+      source: idMap.get(ed.source)!,
+      target: idMap.get(ed.target)!,
+      selected: false,
+    }))
+    setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), ...pasted])
+    setEdges((es) => [...es, ...pastedEdges])
+  }, [snapshot, setNodes, setEdges])
 
   // Cmd/Ctrl + C·X·V·Z — 텍스트 입력 중엔 브라우저 기본 동작에 양보
   useEffect(() => {
@@ -138,25 +166,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         e.preventDefault()
       } else if (key === 'v') {
         if (!clip.current) return
-        snapshot()
-        const idMap = new Map(clip.current.nodes.map((n) => [n.id, crypto.randomUUID()]))
-        const now = Date.now()
-        const pasted = clip.current.nodes.map((n) => ({
-          ...n,
-          id: idMap.get(n.id)!,
-          position: { x: n.position.x + 24, y: n.position.y + 24 },
-          selected: true,
-          data: { ...n.data, seq: nextSeq.current++, createdAt: now, editing: false },
-        }))
-        const pastedEdges = clip.current.edges.map((ed) => ({
-          ...ed,
-          id: crypto.randomUUID(),
-          source: idMap.get(ed.source)!,
-          target: idMap.get(ed.target)!,
-          selected: false,
-        }))
-        setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), ...pasted])
-        setEdges((es) => [...es, ...pastedEdges])
+        pasteClipboard()
         e.preventDefault()
       } else if (key === 'z' && !e.shiftKey) {
         if (undo()) e.preventDefault()
@@ -164,7 +174,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setNodes, setEdges, snapshot, undo, copyNodes])
+  }, [setNodes, setEdges, snapshot, undo, copyNodes, pasteClipboard])
 
   const addNode = useCallback(
     (position?: { x: number; y: number }, kind: NodeKind = 'note') => {
@@ -196,6 +206,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   const lastTap = useRef({ t: 0, x: 0, y: 0 })
   const onPaneClick = useCallback(
     (e: React.MouseEvent) => {
+      setFabOpen(false)
       const now = Date.now()
       const { t, x, y } = lastTap.current
       if (now - t < 350 && Math.hypot(e.clientX - x, e.clientY - y) < 40) {
@@ -302,6 +313,9 @@ function CanvasInner({ session, onChange, onBack }: Props) {
           aria-label="세션 제목"
           onChange={(e) => onChange({ title: e.target.value })}
         />
+        <button type="button" className="icon-btn" aria-label="되돌리기" onClick={undo}>
+          <IconUndo />
+        </button>
         <button type="button" className="icon-btn primary" aria-label="내보내기" onClick={doExport}>
           <IconExport />
         </button>
@@ -312,6 +326,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -356,6 +371,19 @@ function CanvasInner({ session, onChange, onBack }: Props) {
             <span className="kind-swatch swatch-exception" aria-hidden="true" />
             예외
           </button>
+          {hasClip && (
+            <button
+              type="button"
+              className="fab-option"
+              onClick={() => {
+                setFabOpen(false)
+                pasteClipboard()
+              }}
+            >
+              <span className="kind-swatch swatch-paste" aria-hidden="true" />
+              붙여넣기
+            </button>
+          )}
         </div>
       )}
       <button

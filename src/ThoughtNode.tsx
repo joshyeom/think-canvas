@@ -15,8 +15,15 @@ function autosize(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight}px`
 }
 
-export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: NodeProps<TN>) {
-  const { setNodes, deleteElements } = useReactFlow()
+export const ThoughtNode = memo(function ThoughtNode({
+  id,
+  data,
+  selected,
+  positionAbsoluteX,
+  positionAbsoluteY,
+}: NodeProps<TN>) {
+  const { setNodes, deleteElements, flowToScreenPosition, getViewport, setViewport } =
+    useReactFlow()
   const { snapshot, copyNode, cutNode } = useContext(CanvasOpsContext)
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -26,7 +33,15 @@ export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: Nod
       el.focus()
       el.setSelectionRange(el.value.length, el.value.length)
       autosize(el)
+      // 하단 노드 편집 시 소프트 키보드에 가리지 않게 화면 위쪽 40% 안으로 패닝
+      const p = flowToScreenPosition({ x: positionAbsoluteX, y: positionAbsoluteY })
+      const limit = window.innerHeight * 0.4
+      if (p.y > limit) {
+        const vp = getViewport()
+        setViewport({ ...vp, y: vp.y - (p.y - limit) }, { duration: 200 })
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 편집 진입 시 1회만
   }, [data.editing])
 
   const patch = (p: Partial<TN['data']>) =>

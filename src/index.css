@@ -47,6 +47,16 @@ body {
   background: var(--bg);
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
+  /* iOS 롱프레스 콜아웃·텍스트 선택 차단 — 편집 textarea·제목 input만 예외 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+textarea,
+input {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 button {
@@ -318,6 +328,12 @@ button {
   );
 }
 
+.swatch-paste {
+  background: var(--primary-soft);
+  border: 1.5px dashed var(--primary);
+  border-radius: 6px;
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -492,17 +508,54 @@ button {
   color: var(--danger);
 }
 
+/* 터치 기기: 툴바 버튼 확대 (44px 지침) */
+@media (pointer: coarse) {
+  .node-tool {
+    width: 42px;
+    height: 42px;
+  }
+
+  .node-tool svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* 선택된 엣지 중앙 삭제 버튼 (EdgeLabelRenderer) */
+.edge-del {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: oklch(1 0 0);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-md);
+  pointer-events: all;
+}
+
+@media (pointer: coarse) {
+  .edge-del {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 /* ---------- React Flow 오버라이드 ---------- */
 
+/* 히트영역 28px, 시각 점 12px — 손가락 연결 드래그용 */
 .react-flow__handle {
-  width: 14px;
-  height: 14px;
-  background: var(--bg);
-  border: 2px solid var(--primary);
+  width: 28px;
+  height: 28px;
+  border: 8px solid transparent;
+  border-radius: 50%;
+  background: var(--primary);
+  background-clip: content-box;
 }
 
 .react-flow__handle:hover {
-  background: var(--primary-soft);
+  background-color: oklch(0.45 0.13 70);
 }
 
 .react-flow__edge-path {
