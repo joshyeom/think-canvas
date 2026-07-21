@@ -17,16 +17,7 @@ import {
 } from '@xyflow/react'
 import { toMarkdown } from './export'
 import { CanvasOpsContext } from './history'
-import {
-  IconAlert,
-  IconBack,
-  IconCheck,
-  IconDiamond,
-  IconExport,
-  IconPlus,
-  IconSquare,
-  IconX,
-} from './icons'
+import { IconBack, IconCheck, IconExport, IconPlus, IconX } from './icons'
 import { ThoughtNode } from './ThoughtNode'
 import type { NodeKind, Session, ThoughtNode as TN } from './store'
 
@@ -353,29 +344,17 @@ function CanvasInner({ session, onChange, onBack }: Props) {
 
       {fabOpen && (
         <div className="fab-menu" role="menu">
-          <button
-            type="button"
-            className="fab-option"
-            aria-label="일반 노드"
-            onClick={() => pickKind('note')}
-          >
-            <IconSquare />
+          <button type="button" className="fab-option" onClick={() => pickKind('note')}>
+            <span className="kind-swatch swatch-note" aria-hidden="true" />
+            생각
           </button>
-          <button
-            type="button"
-            className="fab-option branch"
-            aria-label="분기 노드"
-            onClick={() => pickKind('branch')}
-          >
-            <IconDiamond />
+          <button type="button" className="fab-option" onClick={() => pickKind('branch')}>
+            <span className="kind-swatch swatch-branch" aria-hidden="true" />
+            분기
           </button>
-          <button
-            type="button"
-            className="fab-option exception"
-            aria-label="예외 노드"
-            onClick={() => pickKind('exception')}
-          >
-            <IconAlert />
+          <button type="button" className="fab-option" onClick={() => pickKind('exception')}>
+            <span className="kind-swatch swatch-exception" aria-hidden="true" />
+            예외
           </button>
         </div>
       )}

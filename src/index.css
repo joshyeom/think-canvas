@@ -276,24 +276,46 @@ button {
 }
 
 .fab-option {
-  width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 22px;
+  padding: 0 var(--space-8) 0 var(--space-6);
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--ink);
-  display: grid;
-  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  justify-content: flex-start;
   box-shadow: var(--shadow-md);
   animation: node-in 140ms var(--ease);
 }
 
-.fab-option.branch {
-  color: var(--accent);
+/* 실제 노드 도형 미리보기 스와치 */
+.kind-swatch {
+  width: 34px;
+  height: 20px;
+  flex: none;
 }
 
-.fab-option.exception {
-  color: var(--danger);
+.swatch-note {
+  background: var(--bg);
+  border: 1.5px solid var(--muted);
+  border-radius: 6px;
+}
+
+.swatch-branch {
+  background: oklch(0.88 0.06 230);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+}
+
+.swatch-exception {
+  background: oklch(0.88 0.08 25);
+  clip-path: polygon(
+    6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px),
+    calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px
+  );
 }
 
 .toast {
