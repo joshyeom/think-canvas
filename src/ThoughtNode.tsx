@@ -85,6 +85,10 @@ export const ThoughtNode = memo(function ThoughtNode({ id, data, selected }: Nod
         <div className="thought-text">{data.text}</div>
       )}
       <Handle id="b" type="source" position={Position.Bottom} />
+      {/* export의 "n." 번호와 캔버스 노드를 매핑하는 시각 배지 */}
+      <span className="seq" aria-hidden="true">
+        {data.seq}
+      </span>
     </div>
   )
 })
