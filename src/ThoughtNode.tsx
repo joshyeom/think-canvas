@@ -56,10 +56,14 @@ export const ThoughtNode = memo(function ThoughtNode({
   return (
     <div
       className={`thought kind-${data.kind ?? 'note'} ${selected ? 'is-selected' : ''}`}
-      onClick={() => {
-        if (!data.editing) {
+      // 첫 클릭 = 선택, 선택된 노드 재클릭 = 편집. shift/cmd 클릭은 RF 다중선택에 양보.
+      onClick={(e) => {
+        if (data.editing || e.shiftKey || e.metaKey || e.ctrlKey) return
+        if (selected) {
           snapshot() // 편집 전 텍스트를 undo 지점으로
           patch({ editing: true })
+        } else {
+          setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === id })))
         }
       }}
     >
