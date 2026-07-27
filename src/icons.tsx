@@ -77,6 +77,15 @@ export const IconCopy = ({ size }: { size?: number }) => (
   </Svg>
 )
 
+export const IconGlobe = ({ size }: { size?: number }) => (
+  <Svg size={size}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a14 14 0 0 1 0 18" />
+    <path d="M12 3a14 14 0 0 0 0 18" />
+  </Svg>
+)
+
 export const IconCut = ({ size }: { size?: number }) => (
   <Svg size={size}>
     <circle cx="6" cy="6" r="3" />

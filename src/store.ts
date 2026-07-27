@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
+import { getDefaultSessionTitle, type Locale } from './i18n.ts'
 
 export type NodeKind = 'note' | 'branch' | 'exception'
 export type ThoughtData = {
@@ -57,12 +58,12 @@ export function saveSessions(sessions: Session[]): boolean {
   }
 }
 
-export function createSession(): Session {
+export function createSession(locale: Locale = 'ko'): Session {
   const now = Date.now()
   const d = new Date(now)
   return {
     id: crypto.randomUUID(),
-    title: `${d.getMonth() + 1}/${d.getDate()} 생각`,
+    title: getDefaultSessionTitle(locale, d.getMonth() + 1, d.getDate()),
     createdAt: now,
     updatedAt: now,
     nextSeq: 1,

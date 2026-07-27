@@ -1,13 +1,31 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from './Canvas'
+import { I18nProvider, getInitialLocale, persistLocale, useI18n, type Locale } from './i18n'
 import { SessionList } from './SessionList'
 import { createSession, loadSessions, saveSessions, type Session } from './store'
 
 export default function App() {
+  const [locale, setLocale] = useState<Locale>(getInitialLocale)
+
+  useEffect(() => {
+    persistLocale(locale)
+    document.documentElement.lang = locale
+    document.title = locale === 'ko' ? '생각 캔버스' : 'Think Canvas'
+  }, [locale])
+
+  return (
+    <I18nProvider locale={locale} setLocale={setLocale}>
+      <AppContent />
+    </I18nProvider>
+  )
+}
+
+function AppContent() {
   const [sessions, setSessions] = useState<Session[]>(loadSessions)
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [saveFailed, setSaveFailed] = useState(false)
   const sessionsRef = useRef(sessions)
+  const { locale, t } = useI18n()
 
   // 상태 갱신 + 동기 localStorage 저장 — pagehide flush 시점에도 유실 없음
   const apply = useCallback((fn: (ss: Session[]) => Session[]) => {
@@ -32,7 +50,7 @@ export default function App() {
     <>
       {saveFailed && (
         <div className="save-warn" role="alert">
-          저장 실패 — 기기 저장공간을 확인하세요
+          {t.saveFailed}
         </div>
       )}
       {current ? (
@@ -47,7 +65,7 @@ export default function App() {
           sessions={sessions}
           onOpen={setCurrentId}
           onCreate={() => {
-            const s = createSession()
+            const s = createSession(locale)
             apply((ss) => [s, ...ss])
             setCurrentId(s.id)
           }}

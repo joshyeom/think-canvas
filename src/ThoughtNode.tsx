@@ -7,6 +7,7 @@ import {
   type NodeProps,
 } from '@xyflow/react'
 import { CanvasOpsContext } from './history'
+import { useI18n } from './i18n'
 import { IconCopy, IconCut, IconTrash } from './icons'
 import type { ThoughtNode as TN } from './store'
 
@@ -25,6 +26,7 @@ export const ThoughtNode = memo(function ThoughtNode({
   const { setNodes, deleteElements, flowToScreenPosition, getViewport, setViewport } =
     useReactFlow()
   const { snapshot, copyNode, cutNode } = useContext(CanvasOpsContext)
+  const { t } = useI18n()
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export const ThoughtNode = memo(function ThoughtNode({
           <button
             type="button"
             className="node-tool"
-            aria-label="복사"
+            aria-label={t.copyNode}
             onPointerDown={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -85,7 +87,7 @@ export const ThoughtNode = memo(function ThoughtNode({
           <button
             type="button"
             className="node-tool"
-            aria-label="잘라내기"
+            aria-label={t.cutNode}
             onPointerDown={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -97,7 +99,7 @@ export const ThoughtNode = memo(function ThoughtNode({
           <button
             type="button"
             className="node-tool danger"
-            aria-label="노드 삭제"
+            aria-label={t.deleteNode}
             onPointerDown={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -119,7 +121,7 @@ export const ThoughtNode = memo(function ThoughtNode({
           className="nodrag nopan nowheel"
           value={data.text}
           rows={1}
-          placeholder="생각 입력…"
+          placeholder={t.thoughtPlaceholder}
           onChange={(e) => {
             patch({ text: e.target.value })
             autosize(e.target)

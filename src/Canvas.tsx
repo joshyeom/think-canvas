@@ -17,7 +17,9 @@ import {
 } from '@xyflow/react'
 import { toMarkdown } from './export'
 import { CanvasOpsContext } from './history'
-import { IconBack, IconCheck, IconExport, IconPlus, IconUndo, IconX } from './icons'
+import { useI18n } from './i18n'
+import { IconBack, IconCheck, IconCopy, IconPlus, IconUndo, IconX } from './icons'
+import { LanguageButton } from './LanguageButton'
 import { ThoughtEdge } from './ThoughtEdge'
 import { ThoughtNode } from './ThoughtNode'
 import type { NodeKind, Session, ThoughtNode as TN } from './store'
@@ -58,6 +60,8 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   const { screenToFlowPosition, deleteElements } = useReactFlow()
   const [toast, setToast] = useState<'' | 'ok' | 'fail'>('')
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [canUndo, setCanUndo] = useState(false)
+  const { locale, t } = useI18n()
 
   // 그래프 변경을 상위(localStorage)로 디바운스 반영
   useEffect(() => {
@@ -101,6 +105,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   const snapshot = useCallback(() => {
     past.current.push({ nodes: latest.current.nodes, edges: latest.current.edges })
     if (past.current.length > 100) past.current.shift()
+    setCanUndo(true)
   }, [])
 
   const undo = useCallback(() => {
@@ -108,6 +113,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     if (!prev) return false
     setNodes(prev.nodes)
     setEdges(prev.edges)
+    setCanUndo(past.current.length > 0)
     return true
   }, [setNodes, setEdges])
 
@@ -280,44 +286,50 @@ function CanvasInner({ session, onChange, onBack }: Props) {
     [screenToFlowPosition, setNodes, setEdges, snapshot],
   )
 
-  const currentMd = () => toMarkdown({ ...session, nodes, edges })
+  const currentMd = () => toMarkdown({ ...session, nodes, edges }, locale)
 
-  // 클립보드 복사 우선, 불가 시 공유 시트 폴백 — 버튼 하나로 통합
-  const doExport = async () => {
+  const doCopy = async () => {
     const md = currentMd()
     try {
       await navigator.clipboard.writeText(md)
       showToast('ok')
     } catch {
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: session.title, text: md })
-        } catch {
-          /* 사용자 취소 */
-        }
-      } else {
-        showToast('fail')
+      const textarea = document.createElement('textarea')
+      textarea.value = md
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      let copied = false
+      try {
+        textarea.select()
+        copied = document.execCommand('copy')
+      } catch {
+        copied = false
+      } finally {
+        textarea.remove()
       }
+      showToast(copied ? 'ok' : 'fail')
     }
   }
 
   return (
     <div className="canvas-view">
       <header className="topbar">
-        <button type="button" className="icon-btn" aria-label="세션 목록으로" onClick={onBack}>
+        <button type="button" className="icon-btn" aria-label={t.goToSessionList} onClick={onBack}>
           <IconBack />
         </button>
         <input
           className="title-input"
           value={session.title}
-          aria-label="세션 제목"
+          aria-label={t.sessionTitle}
           onChange={(e) => onChange({ title: e.target.value })}
         />
-        <button type="button" className="icon-btn" aria-label="되돌리기" onClick={undo}>
+        <LanguageButton />
+        <button type="button" className="icon-btn" aria-label={t.undo} onClick={undo} disabled={!canUndo}>
           <IconUndo />
         </button>
-        <button type="button" className="icon-btn primary" aria-label="내보내기" onClick={doExport}>
-          <IconExport />
+        <button type="button" className="icon-btn primary" aria-label={t.copyPrompt} onClick={doCopy}>
+          <IconCopy />
         </button>
       </header>
 
@@ -348,28 +360,29 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
         minZoom={0.2}
         maxZoom={2}
+        proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
       </ReactFlow>
       </CanvasOpsContext.Provider>
 
       {nodes.length === 0 && (
-        <p className="canvas-hint">빈 곳을 더블탭하거나 + 버튼으로 첫 생각을 추가하세요</p>
+        <p className="canvas-hint">{t.canvasHint}</p>
       )}
 
       {fabOpen && (
         <div className="fab-menu" role="menu">
           <button type="button" className="fab-option" onClick={() => pickKind('note')}>
             <span className="kind-swatch swatch-note" aria-hidden="true" />
-            생각
+            {t.note}
           </button>
           <button type="button" className="fab-option" onClick={() => pickKind('branch')}>
             <span className="kind-swatch swatch-branch" aria-hidden="true" />
-            분기
+            {t.branch}
           </button>
           <button type="button" className="fab-option" onClick={() => pickKind('exception')}>
             <span className="kind-swatch swatch-exception" aria-hidden="true" />
-            예외
+            {t.exception}
           </button>
           {hasClip && (
             <button
@@ -381,7 +394,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
               }}
             >
               <span className="kind-swatch swatch-paste" aria-hidden="true" />
-              붙여넣기
+              {t.paste}
             </button>
           )}
         </div>
@@ -389,7 +402,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
       <button
         type="button"
         className={`fab ${fabOpen ? 'open' : ''}`}
-        aria-label="노드 추가"
+        aria-label={t.addNode}
         aria-expanded={fabOpen}
         onClick={() => setFabOpen((o) => !o)}
       >
@@ -397,8 +410,9 @@ function CanvasInner({ session, onChange, onBack }: Props) {
       </button>
 
       {toast && (
-        <div className={`toast ${toast}`} role="status" aria-label={toast === 'ok' ? '복사됨' : '복사 실패'}>
+        <div className={`toast ${toast}`} role="status" aria-label={toast === 'ok' ? t.copied : t.copyFailed}>
           {toast === 'ok' ? <IconCheck /> : <IconX />}
+          <span>{toast === 'ok' ? t.copied : t.copyFailed}</span>
         </div>
       )}
     </div>

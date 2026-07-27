@@ -5,6 +5,7 @@ import {
   useReactFlow,
   type EdgeProps,
 } from '@xyflow/react'
+import { useI18n } from './i18n'
 import { IconX } from './icons'
 
 /** 기본 엣지 + 선택 시 중앙 삭제 버튼 — 터치에서 엣지를 지울 유일한 수단 */
@@ -21,6 +22,7 @@ export function ThoughtEdge({
   style,
 }: EdgeProps) {
   const { deleteElements } = useReactFlow()
+  const { t } = useI18n()
   const [path, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -38,7 +40,7 @@ export function ThoughtEdge({
           <button
             type="button"
             className="edge-del nodrag nopan"
-            aria-label="연결 삭제"
+            aria-label={t.deleteEdge}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             }}

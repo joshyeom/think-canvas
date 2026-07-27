@@ -8,10 +8,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: '생각 캔버스',
-        short_name: '생각캔버스',
-        description: '사고 과정을 노드로 기록하고 AI 피드백용 텍스트로 내보내는 도구',
-        lang: 'ko',
+        name: 'Think Canvas',
+        short_name: 'Think Canvas',
+        description: 'Capture your thinking as a graph and copy it for AI feedback.',
+        lang: 'en',
         display: 'standalone',
         theme_color: '#ffffff',
         background_color: '#ffffff',
