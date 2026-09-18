@@ -16,6 +16,8 @@ import {
   type FinalConnectionState,
 } from '@xyflow/react'
 import { toMarkdown } from './export'
+import { ConnectionPreview } from './ConnectionPreview'
+import { center, facingSides, origins } from './geometry'
 import { CanvasOpsContext } from './history'
 import { useI18n } from './i18n'
 import { IconBack, IconCheck, IconCopy, IconPlus, IconUndo, IconX } from './icons'
@@ -255,29 +257,36 @@ function CanvasInner({ session, onChange, onBack }: Props) {
   // 핸들 드래그를 빈 곳에 놓으면 그 자리에 새 노드 + 자동 연결
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
-      if (state.isValid || !state.fromNode) return
-      snapshot()
+      if (state.isValid || !state.fromNode || state.toNode) return
       const { clientX, clientY } =
         'changedTouches' in event ? event.changedTouches[0] : event
+      // Touch events retain their starting target; hit-test the release point.
+      if (!document.elementFromPoint(clientX, clientY)?.closest('.react-flow__pane')) return
       const pos = screenToFlowPosition({ x: clientX, y: clientY })
+      const parent = state.fromNode
+      const sides = facingSides(center({
+        ...parent.internals.positionAbsolute,
+        width: parent.measured.width ?? 140,
+        height: parent.measured.height ?? 44,
+      }), pos)
+      snapshot()
       const id = crypto.randomUUID()
       const node: TN = {
         id,
         type: 'thought',
-        position: { x: pos.x - 70, y: pos.y }, // 드롭 지점이 노드 상단 중앙쯤 오게
+        position: pos,
+        // Keep the receiving face at the drop point, even as text changes size.
+        origin: origins[sides.target],
         data: { text: '', seq: nextSeq.current++, createdAt: Date.now(), editing: true },
       }
-      // 어느 핸들에서 끌든 파생 방향은 기존 노드 → 새 노드. 새 노드는 부모를 향한 반대편으로 받음
-      const from = (state.fromHandle?.id ?? 'b') as 't' | 'r' | 'b' | 'l'
-      const opposite = { t: 'b', b: 't', l: 'r', r: 'l' } as const
       setNodes((ns) => [...ns, node])
       setEdges((es) =>
         addEdge(
           {
             source: state.fromNode!.id,
             target: id,
-            sourceHandle: from,
-            targetHandle: opposite[from],
+            sourceHandle: sides.source,
+            targetHandle: sides.target,
           },
           es,
         ),
@@ -343,6 +352,7 @@ function CanvasInner({ session, onChange, onBack }: Props) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectEnd={onConnectEnd}
+        connectionLineComponent={ConnectionPreview}
         onPaneClick={onPaneClick}
         onBeforeDelete={onBeforeDelete}
         onNodeDragStart={snapshot}

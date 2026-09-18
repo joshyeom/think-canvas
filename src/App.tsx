@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Canvas } from './Canvas'
-import { I18nProvider, getInitialLocale, persistLocale, useI18n, type Locale } from './i18n'
+import { I18nProvider, MULTILINGUAL_ENABLED, getInitialLocale, persistLocale, useI18n, type Locale } from './i18n'
 import { SessionList } from './SessionList'
 import { createSession, loadSessions, saveSessions, type Session } from './store'
 
@@ -8,7 +8,7 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>(getInitialLocale)
 
   useEffect(() => {
-    persistLocale(locale)
+    if (MULTILINGUAL_ENABLED) persistLocale(locale)
     document.documentElement.lang = locale
     document.title = locale === 'ko' ? '생각 캔버스' : 'Think Canvas'
   }, [locale])
