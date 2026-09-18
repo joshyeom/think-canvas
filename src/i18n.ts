@@ -262,7 +262,11 @@ export const languageNames: Record<Locale, string> = {
 
 const LOCALE_KEY = 'think-canvas:locale'
 
+// Temporarily ship Korean only; retain translations and saved preferences for re-enabling.
+export const MULTILINGUAL_ENABLED = false
+
 export function getInitialLocale(): Locale {
+  if (!MULTILINGUAL_ENABLED) return 'ko'
   try {
     const saved = localStorage.getItem(LOCALE_KEY)
     if (saved && saved in messages) return saved as Locale
@@ -347,6 +351,11 @@ export function getReviewPrompt(title: string, locale: Locale): string[] {
         '- 놓친 전제, 고려할 점, 위험 요소를 짚어 주세요.',
         '- 다른 관점이나 반론을 제시해 주세요.',
         '- 다음에 확인하거나 실행할 일을 제안해 주세요.', '',
+        '기록에 명시된 사실과 나의 추정·가설·질문을 구분해 주세요. 사실로 적힌 내용도 검증된 근거가 있는지는 별도로 판단해 주세요.',
+        '빠진 맥락은 임의로 채우지 말고 확인 질문으로 남겨 주세요. 연결 화살표를 반드시 인과관계로 해석하지 마세요.',
+        '타당한 부분도 근거와 함께 짚어 주세요. 가장 중요한 불확실성을 최대 3개로 추리고, 각각을 검증할 수 있는 가장 작은 다음 행동과 확인할 결과를 제안해 주세요.',
+        '',
+        '생각 앞 번호는 떠올린 순서를 적어 둔 것일 뿐입니다. "4번"처럼 번호로 가리키지 말고, 그 생각의 내용을 직접 인용하거나 풀어서 말해 주세요.', '',
         '구체적인 피드백과 함께 더 나은 사고 흐름이 있다면 제안해 주세요.', '', '---', '',
       ]
     case 'ja':
@@ -400,4 +409,17 @@ export function getReviewPrompt(title: string, locale: Locale): string[] {
         'Please give specific feedback and suggest a stronger line of reasoning if you see one.', '', '---', '',
       ]
   }
+}
+
+/** Short enough to fit inside the node ghost in every supported locale. */
+export function getDropPreviewLabel(locale: Locale, overlapping: boolean): string {
+  const labels: Record<Locale, [string, string]> = {
+    ko: ['여기에 새 생각', '다른 노드와 겹침'],
+    en: ['New thought here', 'Overlaps another node'],
+    ja: ['ここに新しい考え', '他のノードと重なります'],
+    es: ['Nueva idea aquí', 'Se superpone a un nodo'],
+    de: ['Neuer Gedanke hier', 'Überlappt einen Knoten'],
+    'pt-BR': ['Nova ideia aqui', 'Sobrepõe outro nó'],
+  }
+  return labels[locale][overlapping ? 1 : 0]
 }

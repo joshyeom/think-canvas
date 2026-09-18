@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { languageNames, useI18n, type Locale } from './i18n'
+import { MULTILINGUAL_ENABLED, languageNames, useI18n, type Locale } from './i18n'
 import { IconCheck, IconGlobe, IconX } from './icons'
 
 const locales = Object.entries(languageNames) as [Locale, string][]
 
 export function LanguageButton() {
+  return MULTILINGUAL_ENABLED ? <LanguagePicker /> : null
+}
+
+function LanguagePicker() {
   const { locale, setLocale, t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)

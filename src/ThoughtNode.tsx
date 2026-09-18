@@ -20,10 +20,8 @@ export const ThoughtNode = memo(function ThoughtNode({
   id,
   data,
   selected,
-  positionAbsoluteX,
-  positionAbsoluteY,
 }: NodeProps<TN>) {
-  const { setNodes, deleteElements, flowToScreenPosition, getViewport, setViewport } =
+  const { setNodes, deleteElements, getViewport, setViewport } =
     useReactFlow()
   const { snapshot, copyNode, cutNode } = useContext(CanvasOpsContext)
   const { t } = useI18n()
@@ -32,16 +30,24 @@ export const ThoughtNode = memo(function ThoughtNode({
   useEffect(() => {
     const el = ref.current
     if (data.editing && el) {
-      el.focus()
+      el.focus({ preventScroll: true })
       el.setSelectionRange(el.value.length, el.value.length)
       autosize(el)
-      // 하단 노드 편집 시 소프트 키보드에 가리지 않게 화면 위쪽 40% 안으로 패닝
-      const p = flowToScreenPosition({ x: positionAbsoluteX, y: positionAbsoluteY })
-      const limit = window.innerHeight * 0.4
-      if (p.y > limit) {
-        const vp = getViewport()
-        setViewport({ ...vp, y: vp.y - (p.y - limit) }, { duration: 200 })
+      // Pan only when a real soft keyboard reduces the visible viewport.
+      const viewport = window.visualViewport
+      if (!viewport || !window.matchMedia('(pointer: coarse)').matches) return
+      const revealInput = () => {
+        if (document.activeElement !== el || viewport.height >= window.innerHeight - 100) return
+        const overflow = el.getBoundingClientRect().bottom -
+          (viewport.offsetTop + viewport.height - 16)
+        if (overflow > 0) {
+          const vp = getViewport()
+          setViewport({ ...vp, y: vp.y - overflow })
+        }
       }
+      viewport.addEventListener('resize', revealInput)
+      revealInput()
+      return () => viewport.removeEventListener('resize', revealInput)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 편집 진입 시 1회만
   }, [data.editing])
