@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { MULTILINGUAL_ENABLED, languageNames, useI18n, type Locale } from './i18n'
+import { ENABLED_LOCALES, MULTILINGUAL_ENABLED, languageNames, useI18n, type Locale } from './i18n'
 import { IconCheck, IconGlobe, IconX } from './icons'
 
-const locales = Object.entries(languageNames) as [Locale, string][]
+const locales = (Object.entries(languageNames) as [Locale, string][]).filter(([value]) => ENABLED_LOCALES.includes(value))
 
 export function LanguageButton() {
   return MULTILINGUAL_ENABLED ? <LanguagePicker /> : null

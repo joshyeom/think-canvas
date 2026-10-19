@@ -262,25 +262,19 @@ export const languageNames: Record<Locale, string> = {
 
 const LOCALE_KEY = 'think-canvas:locale'
 
-// Temporarily ship Korean only; retain translations and saved preferences for re-enabling.
-export const MULTILINGUAL_ENABLED = false
+// Ship Korean and English only; other translations are retained for re-enabling.
+export const ENABLED_LOCALES: Locale[] = ['ko', 'en']
+export const MULTILINGUAL_ENABLED = ENABLED_LOCALES.length > 1
 
 export function getInitialLocale(): Locale {
-  if (!MULTILINGUAL_ENABLED) return 'ko'
   try {
-    const saved = localStorage.getItem(LOCALE_KEY)
-    if (saved && saved in messages) return saved as Locale
+    const saved = localStorage.getItem(LOCALE_KEY) as Locale | null
+    if (saved && ENABLED_LOCALES.includes(saved)) return saved
   } catch {
     // localStorage may be unavailable in private browsing.
   }
 
-  const language = navigator.language.toLowerCase()
-  if (language.startsWith('ko')) return 'ko'
-  if (language.startsWith('ja')) return 'ja'
-  if (language.startsWith('es')) return 'es'
-  if (language.startsWith('de')) return 'de'
-  if (language.startsWith('pt')) return 'pt-BR'
-  return 'en'
+  return navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en'
 }
 
 export function persistLocale(locale: Locale) {
@@ -406,6 +400,11 @@ export function getReviewPrompt(title: string, locale: Locale): string[] {
         '- Identify missing assumptions, considerations, or risks.',
         '- Offer alternative perspectives or counterarguments.',
         '- Suggest what I should verify or do next.', '',
+        'Separate the facts stated in my notes from my assumptions, hypotheses, and questions. Even for points written as facts, judge separately whether they are backed by verified evidence.',
+        'Do not fill in missing context on your own; leave it as a clarifying question. Do not assume a connecting arrow means cause and effect.',
+        'Also point out what holds up, with reasons. Narrow the most important uncertainties down to at most three, and for each, suggest the smallest next action that would test it and the result to check.',
+        '',
+        'The numbers in front of each thought only record the order I wrote them in. Do not refer to thoughts by number (like "#4"); quote or paraphrase the thought itself.', '',
         'Please give specific feedback and suggest a stronger line of reasoning if you see one.', '', '---', '',
       ]
   }
